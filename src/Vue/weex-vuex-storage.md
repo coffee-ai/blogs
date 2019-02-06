@@ -1,4 +1,5 @@
 利用Dectorator分模块存储Vuex状态
+
 1、引言
 在H5的Vue项目中，最为常见的当为单页应用(SPA)，利用Vue-Router控制组件的挂载与复用，这时使用Vuex可以方便的维护数据状态而不必关心组件间的数据通信。但在Weex中，不同的页面之间使用不同的执行环境，无法共享数据，此时多为通过BroadcastChannel或storage模块来实现数据通信，本文主要使用修饰器(Decorator)来扩展Vuex的功能，实现分模块存储数据，并降低与业务代码的耦合度。
 
@@ -9,7 +10,7 @@
 目前Decorator还只是一个提案，在生产环境中无法直接使用，可以用babel-plugin-transform-decorators-legacy来实现。使用npm管理依赖包的可以执行以下命令：
 
 npm install babel-plugin-transform-decorators-legacy -D
-复制代码
+
 然后在 .babelrc 中配置
 
 {
@@ -17,7 +18,7 @@ npm install babel-plugin-transform-decorators-legacy -D
         "transform-decorators-legacy"
     ]
 }
-复制代码
+
 或者在webpack.config.js中配置
 
 {
@@ -29,7 +30,7 @@ npm install babel-plugin-transform-decorators-legacy -D
         ]
     ]
 }
-复制代码
+
 这时可以在代码里编写Decorator函数了。
 
 2.2、Decorator的编写
@@ -45,7 +46,7 @@ const actionDecorator = (target, name, descriptor) => {
     };
     return descriptor;
 };
-复制代码
+
 store.js
 
 const module = {
@@ -55,7 +56,7 @@ const module = {
         someAction() {/** 业务代码 **/ },
     },
 };
-复制代码
+
 可以看到，actionDecorator修饰器的三个入参和Object.defineProperty一样，通过对module.actions.someAction函数的修饰，实现在编译时重写someAction方法，在调用方法时，会先执行console.log('调用了修饰器的方法');，而后再调用方法里的业务代码。对于多个功能的实现，比如存储数据，发送广播，打印日志和数据埋点，增加多个Decorator即可。
 
 3、Vuex
@@ -96,7 +97,7 @@ const handler = {
   },
 };
 export default new Proxy(storage, handler);
-复制代码
+
 通过Proxy，将setItem和getItem封装为promise对象，后续使用时可以避免过多的回调结构。
 
 现在我们把storage的setItem方法写入到修饰器：
@@ -131,7 +132,7 @@ const setState = (target, name, descriptor) => {
     return descriptor;
 };
 export default setState;
-复制代码
+
 完成了setState修饰器功能以后，就可以装饰action方法了，这样等action返回的promise状态修改为fulfilled后调用storage的存储功能，及时保存数据状态以便在新开Weex页面加载最新数据。
 
 store.js
@@ -144,7 +145,7 @@ const module = {
         someAction() {/** 业务代码 **/ },
     },
 };
-复制代码
+
 3.2、读取module数据
 完成了存储数据到storage以后，我们还需要在新开的Weex页面实例能自动读取数据并初始化Vuex的状态。在这里，我们使用Vuex的plugins设置来完成这个功能。
 
@@ -196,7 +197,7 @@ const getState = (store) => {
     });
 };
 export default getState;
-复制代码
+
 以上就完成了Vuex的数据按照module读取，但Weex的IOS/Andriod中的storage存储是异步的，为防止组件挂载以后发送请求返回的数据被本地数据覆盖，需要在本地数据读取并merge到state以后再调用new Vue，这里我们使用一个简易的interceptor来拦截：
 
 interceptor.js
@@ -210,7 +211,7 @@ export const runInterceptor = async (type) => {
     const task = interceptors[type] || [];
     return Promise.all(task);
 };
-复制代码
+
 这样plugin.js中的getState就修改为：
 
 import {registerInterceptor} from './interceptor';
@@ -225,7 +226,7 @@ const getState = (store) => {
     // 将promise放入拦截器
     registerInterceptor('start', init);
 };
-复制代码
+
 store.js
 
 import getState from './plugin';
@@ -241,7 +242,7 @@ const rootModule = {
         /** children module**/
     }
 };
-复制代码
+
 app.js
 
 import {runInterceptor} from './interceptor';
@@ -250,7 +251,7 @@ import {runInterceptor} from './interceptor';
 runInterceptor('start').then(() => {
    new Vue({/** other code **/});
 });
-复制代码
+
 这样就实现了Weex页面实例化后，先读取storage数据到Vuex的state，再实例化各个Vue的组件，更新各自的module状态。
 
 4、TODO
