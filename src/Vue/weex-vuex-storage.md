@@ -1,12 +1,15 @@
-利用Dectorator分模块存储Vuex状态
+# 利用Dectorator分模块存储Vuex状态
 
-1、引言
-在H5的Vue项目中，最为常见的当为单页应用(SPA)，利用Vue-Router控制组件的挂载与复用，这时使用Vuex可以方便的维护数据状态而不必关心组件间的数据通信。但在Weex中，不同的页面之间使用不同的执行环境，无法共享数据，此时多为通过BroadcastChannel或storage模块来实现数据通信，本文主要使用修饰器(Decorator)来扩展Vuex的功能，实现分模块存储数据，并降低与业务代码的耦合度。
+## 1、引言
 
-2、Decorator
+在H5的Vue项目中，最为常见的当为单页应用(SPA)，利用Vue-Router控制组件的挂载与复用，这时使用Vuex可以方便的维护数据状态而不必关心组件间的数据通信。但在Weex中，不同的页面之间使用不同的执行环境，无法共享数据，此时多为通过`BroadcastChannel`或`storage`模块来实现数据通信，本文主要使用修饰器(Decorator)来扩展Vuex的功能，实现分模块存储数据，并降低与业务代码的耦合度。
+
+## 2、Decorator
+
 设计模式中有一种装饰器模式，可以在运行时扩展对象的功能，而无需创建多个继承对象。类似的，Decorator可以在编译时扩展一个对象的功能，降低代码耦合度的同时实现多继承一样的效果。
 
-2.1、Decorator安装
+### 2.1、Decorator安装
+
 目前Decorator还只是一个提案，在生产环境中无法直接使用，可以用babel-plugin-transform-decorators-legacy来实现。使用npm管理依赖包的可以执行以下命令：
 
 ```shell 
@@ -36,7 +39,8 @@ npm install babel-plugin-transform-decorators-legacy -D
 ```
 这时可以在代码里编写Decorator函数了。
 
-2.2、Decorator的编写
+### 2.2、Decorator的编写
+
 在本文中，Decorator主要是对方法进行修饰，主要代码如下：
 ```javascript
 // decorator.js
@@ -60,15 +64,17 @@ const module = {
     },
 };
 ```
-可以看到，actionDecorator修饰器的三个入参和Object.defineProperty一样，通过对module.actions.someAction函数的修饰，实现在编译时重写someAction方法，在调用方法时，会先执行console.log('调用了修饰器的方法');，而后再调用方法里的业务代码。对于多个功能的实现，比如存储数据，发送广播，打印日志和数据埋点，增加多个Decorator即可。
+可以看到，`actionDecorator`修饰器的三个入参和`Object.defineProperty`一样，通过对`module.actions.someAction`函数的修饰，实现在编译时重写`someAction`方法，在调用方法时，会先执行`console.log('调用了修饰器的方法');`，而后再调用方法里的业务代码。对于多个功能的实现，比如存储数据，发送广播，打印日志和数据埋点，增加多个Decorator即可。
 
-3、Vuex
-Vuex本身可以用subscribe和subscribeAction订阅相应的mutation和action，但只支持同步执行，而Weex的storage存储是异步操作，因此需要对Vuex的现有方法进行扩展，以满足相应的需求。
+## 3、Vuex
 
-3.1、修饰action
-在Vuex里，可以通过commit mutation或者dispatch action来更改state，而action本质是调用commit mutation。因为storage包含异步操作，在不破坏Vuex代码规范的前提下，我们选择修饰action来扩展功能。
+Vuex本身可以用`subscribe`和`subscribeAction`订阅相应的`mutation`和`action`，但只支持同步执行，而Weex的`storage`存储是异步操作，因此需要对Vuex的现有方法进行扩展，以满足相应的需求。
 
-storage使用回调函数来读写item，首先我们将其封装成Promise结构：
+### 3.1、修饰`action`
+
+在Vuex里，可以通过`commit mutation`或者`dispatch action`来更改`state`，而`action`本质是调用`commit mutation`。因为`storage`包含异步操作，在不破坏Vuex代码规范的前提下，我们选择修饰`action`来扩展功能。
+
+`storage`使用回调函数来读写item，首先我们将其封装成**Promise**结构：
 ```javascript
 // storage.js
 const storage = weex.requireModule('storage');
@@ -100,9 +106,9 @@ const handler = {
 };
 export default new Proxy(storage, handler);
 ```
-通过Proxy，将setItem和getItem封装为promise对象，后续使用时可以避免过多的回调结构。
+通过`Proxy`，将`setItem`和`getItem`封装为`promise`对象，后续使用时可以避免过多的回调结构。
 
-现在我们把storage的setItem方法写入到修饰器：
+现在我们把`storage`的`setItem`方法写入到修饰器：
 ```javascript
 // decorator.js
 import storage from './storage';
@@ -134,7 +140,7 @@ const setState = (target, name, descriptor) => {
 };
 export default setState;
 ```
-完成了setState修饰器功能以后，就可以装饰action方法了，这样等action返回的promise状态修改为fulfilled后调用storage的存储功能，及时保存数据状态以便在新开Weex页面加载最新数据。
+完成了`setState`修饰器功能以后，就可以装饰`action`方法了，这样等`action`返回的`promise`状态修改为`fulfilled`后调用`storage`的存储功能，及时保存数据状态以便在新开Weex页面加载最新数据。
 ```javascript
 // store.js
 import setState from './decorator';
@@ -146,8 +152,9 @@ const module = {
     },
 };
 ```
-3.2、读取module数据
-完成了存储数据到storage以后，我们还需要在新开的Weex页面实例能自动读取数据并初始化Vuex的状态。在这里，我们使用Vuex的plugins设置来完成这个功能。
+### 3.2、读取`module`数据
+
+完成了存储数据到`storage`以后，我们还需要在新开的Weex页面实例能自动读取数据并初始化Vuex的状态。在这里，我们使用Vuex的plugins设置来完成这个功能。
 
 首先我们先编写Vuex的plugin：
 ```javascript
@@ -197,7 +204,7 @@ const getState = (store) => {
 };
 export default getState;
 ```
-以上就完成了Vuex的数据按照module读取，但Weex的IOS/Andriod中的storage存储是异步的，为防止组件挂载以后发送请求返回的数据被本地数据覆盖，需要在本地数据读取并merge到state以后再调用new Vue，这里我们使用一个简易的interceptor来拦截：
+以上就完成了Vuex的数据按照`module`读取，但Weex的IOS/Andriod中的`storage`存储是异步的，为防止组件挂载以后发送请求返回的数据被本地数据覆盖，需要在本地数据读取并`merge`到`state`以后再调用`new Vue`，这里我们使用一个简易的interceptor来拦截：
 ```javascript
 // interceptor.js
 const interceptors = {};
@@ -210,7 +217,7 @@ export const runInterceptor = async (type) => {
     return Promise.all(task);
 };
 ```
-这样plugin.js中的getState就修改为：
+这样plugin.js中的`getState`就修改为：
 ```javascript
 import {registerInterceptor} from './interceptor';
 const getState = (store) => {
@@ -252,12 +259,14 @@ runInterceptor('start').then(() => {
    new Vue({/** other code **/});
 });
 ```
-这样就实现了Weex页面实例化后，先读取storage数据到Vuex的state，再实例化各个Vue的组件，更新各自的module状态。
+这样就实现了Weex页面实例化后，先读取`storage`数据到Vuex的`state`，再实例化各个Vue的组件，更新各自的`module`状态。
 
-4、TODO
-通过Decorator实现了Vuex的数据分模块存储到storage，并在Store实例化时通过plugin分模块读取数据再merge到state，提高数据存储效率的同时实现与业务逻辑代码的解耦。但还存在一些可优化的点：
+## 4、TODO
 
-1、触发action将会存储所有module中的state，只需保存必要状态，避免无用数据。
+通过Decorator实现了Vuex的数据分模块存储到`storage`，并在`Store`实例化时通过plugin分模块读取数据再`merge`到`state`，提高数据存储效率的同时实现与业务逻辑代码的解耦。但还存在一些可优化的点：
 
-2、对于通过registerModule注册的module，需支持自动读取本地数据。
+1、触发`action`将会存储所有`module`中的`state`，只需保存必要状态，避免无用数据。
+
+2、对于通过`registerModule`注册的`module`，需支持自动读取本地数据。
+
 在此不再展开，将在后续版本中实现。
