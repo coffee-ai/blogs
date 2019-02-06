@@ -23,7 +23,7 @@ npm install babel-plugin-transform-decorators-legacy -D
 ```
 
 或者在webpack.config.js中配置
-```json
+```javascript
 {
     test: /\.js$/,
     loader: "babel-loader",
@@ -258,5 +258,6 @@ runInterceptor('start').then(() => {
 通过Decorator实现了Vuex的数据分模块存储到storage，并在Store实例化时通过plugin分模块读取数据再merge到state，提高数据存储效率的同时实现与业务逻辑代码的解耦。但还存在一些可优化的点：
 
 1、触发action将会存储所有module中的state，只需保存必要状态，避免无用数据。
+
 2、对于通过registerModule注册的module，需支持自动读取本地数据。
 在此不再展开，将在后续版本中实现。
