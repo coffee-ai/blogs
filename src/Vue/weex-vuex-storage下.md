@@ -12,7 +12,7 @@
 
 `WeakMap`是ES6中新增的数据类型，其键属于弱引用，可以很好的避免在没有其他引用时，因`Map`存在引用无法释放而导致的内存泄漏。首先，需要创建黑白名单的修饰器：
 
-```
+```javascript
 const WHITE_TAG = 1; // 白名单tag
 const BLACK_TAG = 2; // 黑名单tag
 // 存储state的信息
@@ -52,7 +52,7 @@ const forbidWrite = createDescriptorDecorator(BLACK_TAG);
 
 这样就完成了修饰器的编写，使用时对需要的`state`的`property`修饰即可：
 
-```
+```javascript
 const module = {
     state: () => ({
         @shouldWrite
@@ -68,7 +68,7 @@ const module = {
 
 在`getter`触发依赖收集后，我们将`state`的`property`存入了`descriptorSet`，现在我们需要根据`module`的`state`，利用`descriptorSet`将无效的数据过滤掉，返回`pureState`:
 
-```
+```javascript
 /**
  * [根据黑白名单，过滤state中无效的数据，返回新state]
  * @param  {[type]} module [state对应的module]
