@@ -4,7 +4,7 @@
 
 ## 初始化`Vue`实例
 
-在阅读源码时，因为文件繁多，引用复杂往往使我们不容易抓住重点，这里我们需要找到一个入口文件，从`Vue`构造函数开始，抛开其他无关因素，一步步理解响应式数据的实现原理。首先我们找到`Vue`构造函数：
+在阅读源码时，因为文件繁多，引用关系复杂往往使我们不容易抓住重点，所以我们需要找到一个入口文件，从`Vue`构造函数开始，抛开其他无关因素，一步步理解响应式数据的实现原理。首先我们找到`Vue`构造函数：
 
 ``` javascript
 // src/core/instance/index.js
@@ -51,7 +51,7 @@ Vue.prototype._init = function (options) {
 }
 ```
 
-为了方便阅读，我们去除了`flow`类型检查和部分无关代码。可以看到，在实例化Vue组件时，会调用`Vue.prototype._init`，而在方法内部，数据的初始化操作主要在`initState`（这里的`initInjections`和`initProvide`与`initProps`类似，在理解了`initState`原理后自然明白），因此我们重点来关注`initState`。
+为了方便阅读，我们去除了`flow`类型检查和部分无关代码。可以看到，在实例化Vue组件时，会调用`Vue.prototype._init`，而在方法内部，数据的初始化操作主要在`initState`（`initInjections`和`initProvide`与`initProps`类似），因此我们重点来关注`initState`。
 
 ``` javascript
 // src/core/instance/state.js
@@ -72,7 +72,7 @@ export function initState (vm) {
 }
 ```
 
-首先初始化了一个`_watchers`数组，用来存放`watcher`，之后根据实例的`vm.$options`，相继调用`initProps`、`initMethods`、`initData`、`initComputed`和`initWatch`方法。
+首先初始化了一个`_watchers`数组，用来存放各种`watcher`，之后根据实例的`vm.$options`，相继调用`initProps`、`initMethods`、`initData`、`initComputed`和`initWatch`方法。
 
 ##  `initProps`
 
@@ -101,7 +101,7 @@ function initProps (vm, propsOptions) {
 }
 ```
 
-在这里，`vm.$options.propsData`是通过父组件传给子组件实例的数据对象，如`<my-element :item="false"></my-element>`中的`{item: false}`，然后初始化`vm._props`和`vm.$options._propKeys`分别用来保存实例的`props`数据和`keys`，因为子组件中使用的是通过`proxy`引用的`_props`里的数据，而不是父组件传递的`propsData`，所以这里缓存了`_propKeys`，用来`updateChildComponent`时能更新`vm._props`。接着根据`isRoot`是否是根组件来判断是否需要调用`toggleObserving(false)`，这是一个全局的开关，来控制是否需要给对象添加`__ob__`属性。这个相信大家都不陌生，一般的组件的`data`等数据都包含这个属性，这里先不深究，等之后和`defineReactive`时一起讲解。因为`props`是通过父传给子的数据，在父元素`initState`时已经把`__ob__`添加上了，所以在不是实例化根组件时关闭了这个全局开关，待调用结束前在通过`toggleObserving(true)`开启。
+在`initProps`方法中，`vm.$options.propsData`是通过父组件传给子组件实例的数据对象，如`<my-element :item="false"></my-element>`中的`{item: false}`，然后初始化`vm._props`和`vm.$options._propKeys`分别用来保存实例的`props`数据和`keys`，因为子组件中使用的是通过`proxy`引用的`_props`里的数据，而不是父组件传递的`propsData`，所以这里缓存了`_propKeys`，用来`updateChildComponent`时能更新`vm._props`。接着根据`isRoot`是否是根组件来判断是否需要调用`toggleObserving(false)`，这是一个全局的开关，来控制是否需要给对象添加`__ob__`属性。这个相信大家都不陌生，一般的组件的`data`等数据都包含这个属性，这里先不深究，等之后和`defineReactive`时一起讲解。因为`props`是通过父传给子的数据，在父元素`initState`时已添加`__ob__`属性，所以除了实例化根组件以外，关闭这个全局开关，待调用结束前在通过`toggleObserving(true)`开启。
 
 之后是一个`for`循环，根据组件中定义的`propsOptions`对象来设置`vm._props`，这里的`propsOptions`就是我们常写的
 
@@ -285,7 +285,7 @@ export class Observer {
 }
 ```
 
-构造函数里初始化了`value`、`dep`和`vmCount`三个属性，为`this.value`添加`__ob__`对象并指向自己，即`value.__ob__.value === value`，这样就可以通过`value`或`__ob__`对象取到`dep`和`value`。`vmCount`的作用主要是用来区分是否为`Vue`实例的根`data`，`dep`的作用这里先不介绍，待与`getter/setter`里的`dep`一起解释。
+构造函数里初始化了`value`、`dep`和`vmCount`三个属性，为`this.value`添加`__ob__`对象并指向自己，即`value.__ob__.value === value`，此时可以通过`value`或`__ob__`对象取到`dep`和`value`。`vmCount`的作用主要是用来区分是否为`Vue`实例的根`data`，`dep`的作用这里先不介绍，待与`getter/setter`里的`dep`一起解释。
 
 接着根据`value`是数组还是纯对象来分别调用相应的方法，对`value`进行递归操作。当`value`为纯对象时，调用`walk`方法，递归调用`defineReactive`。当`value`是数组类型时，首先判断是否有`__proto__`，有就使用`__proto__`实现原型链继承，否则用`Object.defineProperty`实现拷贝继承。其中继承的基类`arrayMethods`来自`src/core/observer/array.js`：
 
@@ -368,7 +368,7 @@ Object.defineProperty(obj, key, {
 })
 ```
 
-首先在`getter`调用时，判断`Dep.target`是否存在，若存在则调用`dep.depend`。我们先不深究`Dep.target`，只当它是一个观察者，比如我们常用的某个计算属性，调用`dep.depend`会将`dep`当做计算属性的依赖项存入其依赖列表，并把这个计算属性注册到这个`dep`。这里为什么需要互相引用呢？这是因为一个`target[key]`可以充当多个观察者的依赖项，同时一个观察者可以有多个依赖项，他们之间属于多对多的关系。这样当某个依赖项改变时，我们可以根据`dep`里维护的观察者，调用他们的注册方法。现在我们回过头来看`Dep`：
+首先在`getter`调用时，判断`Dep.target`是否存在，若存在则调用`dep.depend`。我们先不深究`Dep.target`，只当它是一个观察者，比如我们常用的某个计算属性，调用`dep.depend`会将`dep`当做计算属性的观察对象存入其列表，并把这个计算属性注册到这个`dep`观察者列表。这里为什么需要互相引用呢？这是因为一个`target[key]`可以被多个观察者观察，同时一个观察者可以观察多个对象。这样当某个被观察者改变时，我们可以根据`dep`里维护的观察者列表，调用他们的注册方法。现在我们回过头来看`Dep`：
 
 ``` javascript
 // src/core/observer/dep.js
@@ -407,7 +407,7 @@ export default class Dep {
 }
 ```
 
-构造函数里，首先添加一个自增的`uid`用以做`dep`实例的唯一性标志，接着初始化一个观察者列表`subs`，并定义了添加观察者方法`addSub`和移除观察者方法`removeSub`。可以看到其在`getter`中调用的`depend`会将当前这个`dep`实例添加到观察者的依赖项，在`setter`里调用的`notify`会执行各个观察者注册的`update`方法，`Dep.target.addDep`这个方法将在之后的`Watcher`里进行解释。简单来说就是会在`key`的`getter`触发时进行`dep`依赖收集到`watcher`并将`Dep.target`添加到当前`dep`的观察者列表，这样在`key`的`setter`触发时，能够通过观察者列表，执行观察者的`update`方法。
+构造函数里，首先添加一个自增的`uid`用以做`dep`实例的唯一性标志，接着初始化一个观察者列表`subs`，并定义了添加观察者方法`addSub`和移除观察者方法`removeSub`。可以看到其在`setter`里调用的`notify`会执行各个观察者注册的`update`方法，在`getter`中调用的`depend`会调用`Dep.target.addDep`，将当前这个`dep`实例添加到观察者的观察列表，具体将在之后的`Watcher`里进行解释。简单来说就是会在`getter`触发时进行`dep`依赖收集到`watcher`并将`watcher`添加到当前`dep`的观察者列表，这样在`setter`触发时，能够通过观察者列表，执行观察者的`update`方法。
 
 当然，在`getter`中还有如下几行代码：
 
@@ -445,8 +445,7 @@ if (inserted) ob.observeArray(inserted)
 ob.dep.notify()
 ```
 
-将其转换为响应式数据，并通过`ob.dep.notify`来调用观察者的方法，而这里的观察者列表就是通过上述的`childOb.dep.depend`来收集的。同样的，为了实现对象新增数据的响应式，我们需要提供相应的`hack`方法，而这就是我们常用的`Vue.set/Vue.delete`。
-
+将其转换为响应式数据，并通过`ob.dep.notify`来调用观察者的方法，而这里的观察者列表就是通过上述的`childOb.dep.depend`来收集的。同样的，为了实现对象新增属性的响应式，我们需要提供相应的`hack`方法，而这就是我们常用的`Vue.set/Vue.delete`。
 
 ``` javascript
 // src/core/observer/index.js
@@ -508,7 +507,7 @@ function dependArray (value: Array<any>) {
 }
 ```
 
-在触发`target[key]`的`getter`时，如果`value`的类型为数组，则递归将其每个元素都调用`__ob__.dep.depend`，这是因为无法拦截数组元素的`getter`，所以将当前`watcher`收集到数组下的所有`__ob__.dep`，这样当其中一个元素触发增、删操作时能通知到观察者。比如：
+在触发`getter`时，如果`value`的类型为数组，则递归将其每个元素都调用`__ob__.dep.depend`，这是因为无法拦截数组元素的`getter`，所以将当前`watcher`收集到数组下的所有`__ob__.dep`，这样当其中一个元素触发增、删操作时能通知到观察者。比如：
 
 ``` javascript
 const data = {
@@ -684,7 +683,7 @@ if (Dep.target) {
 }
 ```
 
-当执行计算属性的`getter`时，有可能表达式中还有别的计算属性依赖，此时我们需要执行`watcher.depend`将当前`watcher`的`deps`添加到`Dep.target`即可。最后返回求得的`watcher.value`即可。
+当执行计算属性的`getter`时，有可能表达式中还有别的计算属性依赖，即可能当前计算属性为其他计算属性的依赖项，此时我们需要执行`watcher.depend`将当前`watcher`的`deps`添加到`Dep.target`即可。最后返回求得的`watcher.value`即可。
 
 总的来说我们从`this[key]`触发`watcher`的`get`函数，将当前`watcher`入栈，通过求值表达式将所需要的依赖`dep`收集到`newDepIds`和`newDeps`，并将`watcher`添加到对应`dep`的观察者列表，最后清除无效`dep`并返回求值结果，这样就完成了依赖关系的收集。
 
@@ -702,7 +701,7 @@ notify () {
 }
 ```
 
-首先在`dep.notify`时，我们将`this.subs`拷贝出来，防止在`watcher`的`get`时候`subs`发生更新，之后调用`update`方法：
+首先在`dep.notify`时，我们将`this.subs`拷贝出来，防止在`watcher`的`get`时候`subs`发生更新而引起混乱，之后调用`update`方法：
 
 ``` javascript
 update () {
@@ -723,8 +722,10 @@ update () {
 
 ## 小结
 
-因为篇幅有限，只对数据绑定的基本原理做了基本的介绍，在这画了一张简单的流程图来帮助理解`Vue`的响应式数据，其中省略了一些`VNode`等不影响理解的逻辑及边界条件，尽可能简化地让流程更加直观：
+因为篇幅有限，只对数据绑定的基本原理做了基本的介绍，在这画了简单的流程图和数据流向图来帮助理解`Vue`的响应式数据，其中省略了一些`VNode`等不影响理解的逻辑及边界条件，尽可能简化地让流程更加直观：
 
 ![](https://user-gold-cdn.xitu.io/2019/5/6/16a8d66f419d837a?w=1052&h=973&f=png&s=123892)
+
+![](https://user-gold-cdn.xitu.io/2019/5/21/16adad9b1cf2c249?w=1093&h=1040&f=png&s=114355)
 
 最后，本着学习的心态，在写作的过程中也零零碎碎的查阅了很多资料，其中难免出现纰漏以及未覆盖到的知识点，如有错误，还请不吝指教。
