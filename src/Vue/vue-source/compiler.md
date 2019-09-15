@@ -171,7 +171,7 @@ function compile (
 
 这里我们以一张流程图来简要梳理下编译过程：
 
-![](https://user-gold-cdn.xitu.io/2019/5/25/16aee5e3b67be5a0?w=1209&h=1000&f=png&s=101919)
+![](img/compiler/compile.jpg)
 
 ## `parse`
 
@@ -198,7 +198,7 @@ postTransforms = pluckModuleFunction(options.modules, 'postTransformNode')
 
 `parseHTML`，如其命名，用于解析我们的`HTML`字符串。首先是初始化`stack`，用以维护非自闭合的`element`栈，之后利用`while(html)`对`html`进行标签正则匹配、循环解析，这里我们用一张导图来更加直观地展示其解析逻辑：
 
-![](https://user-gold-cdn.xitu.io/2019/5/26/16af44ef4c97f6ef?w=1247&h=1058&f=png&s=148934)
+![](img/compiler/parseHTML.jpg)
 
 通过调用`advance`来截断更新`html`字符串，供下一次循环解析，并调用`option`中的`start`、`end`、`chars`和`comment`方法将其添加到`root`对象中，最终完成`AST`语法树的输出。在`parseHTML`中，最核心的当属解析标签的开始，因此我们以`parseStartTag`为入口，来进行代码阅读。
 
@@ -632,7 +632,7 @@ syncGen = genAssignmentCode(value, `$event`)
 这里用一张导图来梳理一下parse过程中的主要知识点
 ```
 
-![](https://user-gold-cdn.xitu.io/2019/9/15/16d32cdc64c4fc34?w=2425&h=1902&f=png&s=333446)
+![](img/compiler/parse.jpg)
 
 通过`parse`我们就能根据一段字符串`html`解析得到一个`root`节点及其`children`和子孙后代，生成一棵完整的`AST`语法树，最终得到如下结构的`root`：
 
